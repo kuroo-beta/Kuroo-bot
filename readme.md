@@ -494,3 +494,84 @@ the profile scope, font, effect, and color as described above. If your host stil
 real name style is applied to ordinary letters. Existing `STREAMING_NAME` settings
 continue to override the default security and moderation title.
 Restart the hosted bot after deploying to apply these settings and sync `/anime`.
+
+## Panic Shield
+
+Panic Shield is opt-in. It detects human join spikes and sends a moderator alert;
+a server manager must click **Start 10-minute lockdown** to change permissions.
+The alert can start a lockdown for five minutes after it is posted. Alerts have a
+five-minute cooldown. Bots are excluded from join counts.
+
+```text
+/panic setup channel:#mod-alerts threshold:5 window:30
+/panic status
+/panic unlock
+/panic off
+```
+
+The setup, status, unlock and off commands and alert buttons require **Manage
+Server**. Kuroo needs **Manage Channels** and permission to send in the alert
+channel. Use a private staff channel for alerts. Threshold is 3–20 human joins;
+the window is 10–120 seconds. The usual server prefix also works.
+
+A lockdown denies `@everyone` message sending and sending in threads for existing
+text and forum channels. It does not override other roles or individual-member
+allows, lock voice channels, block joins, or automatically lock channels created
+later. This is a temporary communication restriction, not a full server freeze.
+
+Before each Discord change, Kuroo saves the prior values in MongoDB
+(`safety_panic`). It restores them after ten minutes or when a manager clicks
+**Undo lockdown** or runs `/panic unlock`. `/panic off` disables new alerts and
+also attempts restoration. Pending restores retry every 15 seconds, including
+after a restart. Keep the MongoDB data and the bot's Manage Channels permission
+until restoration finishes. A bot that is offline cannot restore until restarted.
+
+Restoration changes only the two recorded message permissions and preserves
+unrelated permission edits. A later explicit True/None edit to those two fields is
+also preserved; a later False cannot be distinguished from the lockdown's False.
+Run one active Kuroo process per bot token (its existing automatic shards are
+supported). Failed or incomplete operations remain visible through `/panic status`
+and logs; restored snapshots are removed from the active record.
+
+## Smart Onboarding
+
+Onboarding is opt-in and provides a persistent **Choose my interests** button.
+It posts an additional prompt in the configured welcome channel when a human joins.
+Existing welcome cards and messages continue to work.
+
+```text
+/onboard setup rules:#rules welcome:#welcome
+/onboard addrole role:@Gaming
+/onboard addrole role:@Art
+/onboard panel
+/onboard status
+/onboard removerole role:@Art
+/onboard off
+```
+
+Setup, panel, status and off require **Manage Server**. Adding/removing choices
+also requires **Manage Roles**. Add at most ten regular roles, below both the
+configuring manager's and Kuroo's highest roles (the server owner is exempt from
+the manager hierarchy restriction). Roles with moderation, management, mass-mention,
+or voice-moderation permissions are rejected. Kuroo needs Manage Roles to assign
+interests, and the rules channel must be visible to `@everyone`.
+
+Members open a private selector and may clear all choices. Kuroo rechecks the
+configuration, role permissions, and hierarchy when they submit, and uses additive
+role API operations to preserve unrelated roles. Disabled or stale panels cannot
+grant roles. Removing an interest choice or disabling onboarding retains existing
+member assignments. Settings are stored in MongoDB (`safety_onboard`); persistent
+panel buttons are registered again after restart.
+
+### Suggested next additions
+
+1. **Invite tracking:** inviter attribution, join/leave totals and moderator lookup.
+   Handle missing invite permissions, vanity links and ambiguous simultaneous joins
+   explicitly instead of guessing an inviter.
+2. **Live staff dashboard:** a Discord message showing latency, shard health,
+   active lockdowns and pending restores. Restrict setup to server managers.
+3. **YouTube/Twitch alerts:** useful for community engagement once the security
+   workflows are verified in your server. This needs provider polling, deduplication
+   and Twitch credentials.
+
+These are follow-up options; the current update adds Panic Shield and onboarding.

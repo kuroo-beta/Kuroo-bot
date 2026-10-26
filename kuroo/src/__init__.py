@@ -23,6 +23,7 @@ from .commands.community import Community
 from .commands.music import Music
 from .commands.root import Root
 from .commands.security import Security
+from .commands.safety import Safety
 from .commands.ticket import Ticket
 from .commands.utils import Utils
 from .commands.voice import Voice
@@ -58,6 +59,7 @@ async def setup(bot: AutoShardedBot):
     units_to_mount = [
         Utils(bot=bot),
         Security(bot=bot),
+        Safety(bot=bot),
         Automod(bot=bot),
         Moderation(bot=bot),
         Ticket(bot=bot),

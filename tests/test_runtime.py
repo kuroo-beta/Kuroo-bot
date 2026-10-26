@@ -19,7 +19,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(bot.activity.url, bot.BotConfig.STREAMING_URL)
             self.assertEqual(bot.activity.name, bot.BotConfig.STREAMING_NAME)
             await bot.load_extension('kuroo.src')
-            self.assertEqual(len(bot.cogs), 41)
+            self.assertEqual(len(bot.cogs), 42)
             self.assertGreater(len(list(bot.walk_commands())), 200)
             self.assertGreater(len(bot.tree.get_commands()), 60)
             self.assertIn('help', bot.all_commands)
@@ -46,7 +46,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
                     self.assertLessEqual(len(item.get('options', [])), 25)
                     validate(item.get('options', []))
             validate(definitions)
-            for path in [('levelconfig', 'announcements'), ('levelconfig', 'ignorechannel'),
+            for path in [('panic', 'setup'), ('panic', 'unlock'), ('onboard', 'addrole'), ('onboard', 'panel'), ('levelconfig', 'announcements'), ('levelconfig', 'ignorechannel'),
                          ('levelconfig', 'rate'), ('xp', 'edit'), ('economy', 'rewards'), ('levelreward', 'set'), ('liveleaderboard', 'set')]:
                 command = bot.tree.get_command(path[0]).get_command(path[1])
                 self.assertIsNotNone(command)

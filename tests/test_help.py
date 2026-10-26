@@ -265,8 +265,12 @@ class HelpTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Synced 2', self.ctx.send.await_args.args[0])
 
     async def test_real_startup_registers_new_commands_before_publishing(self):
+        # Real startup has no synthetic test cogs competing for slash command slots.
+        await self.bot.remove_cog('Unlabelled')
+        await self.bot.remove_cog('HiddenCog')
         async def publish():
-            for name in ('rank', 'lb', 'balance', 'daily', 'work', 'leave', 'welcomecards', 'premiumcode', 'help', 'synccommands', 'levelconfig', 'xp', 'economy'):
+            self.assertLessEqual(len(self.bot.tree.get_commands()), 100)
+            for name in ('rank', 'lb', 'balance', 'daily', 'work', 'leave', 'welcomecards', 'premiumcode', 'help', 'synccommands', 'levelconfig', 'xp', 'economy', 'panic', 'onboard'):
                 self.assertIsNotNone(self.bot.get_command(name), name)
                 self.assertIsNotNone(self.bot.tree.get_command(name), name)
             return self.bot.tree.get_commands()

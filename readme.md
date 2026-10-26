@@ -34,11 +34,26 @@ require running a second bot or installing the reference project.
 
 ### Discord profile name effects
 
-The default Discord name is **𝕂𝕌ℝ𝕆𝕆**, using outlined Unicode letters to
-approximate the decorative name in the reference. Set `BOT_DISPLAY_NAME` to
-customize it. Discord controls the font and does not provide a bot API for the
-reference's exact bubble font, animation, or gradient name effects. The streaming
-presence is configured separately from the profile name.
+The name text defaults to **Kuroo** (`BOT_DISPLAY_NAME=Kuroo`). Per-server
+name styling follows the [provided name-style guide](https://github.com/songshado061-oss/style-name-Bot-Discord):
+Jellybean font (`NAME_STYLE_FONT_ID=4`), Toon effect (`NAME_STYLE_EFFECT_ID=4`),
+and white (`NAME_STYLE_COLORS=FFFFFF`) to match the rounded, outlined reference.
+The bot attempts styling on startup and when joining a server. Server administrators
+can retry with `/setbotstyle` (or `?setbotstyle`). Styling is separate from streaming.
+
+The guide's `display_name_font_id`, `display_name_effect_id`, and
+`display_name_colors` fields are absent from Discord's current public
+[Modify Current Member documentation](https://docs.discord.com/developers/resources/guild#modify-current-member).
+Kuroo sends them through its existing authenticated bot HTTP client and only reports
+success when the response echoes the requested values. A 200 response without those
+values is reported as unconfirmed, since Discord may ignore unsupported fields.
+The actual rendering must be checked in Discord with Display Name Styles enabled.
+
+Set `NAME_STYLE_ENABLED=False` to stop automatic style requests; it does not remove
+an already-applied style. Set the font/effect IDs and comma-separated six-digit hex
+colors in the host environment to customize the style. Gradient (effect 2) requires
+two colors; other effects require one. Failures are logged per server and do not
+stop startup. Reconnects do not repeat attempts for the same server in that process.
 
 ## Upstream showcase
 
@@ -466,11 +481,9 @@ user, and shard counts, refreshed every minute. `STREAMING_URL` controls the Wat
 link. This replaces the old rotating activity text, including its command hints.
 Discord clients decide how the card and its fields render.
 
-`BOT_DISPLAY_NAME=𝕂𝕌ℝ𝕆𝕆` requests an outlined Unicode bot username at startup to
-approximate the reference's decorative name. It does not change avatars or banners.
-Set it to your preferred name, or leave it blank to preserve the existing username.
-The bot attempts the rename once per process, and a Discord rejection is logged
-without stopping the bot. Unicode appearance depends on the client's fonts.
-If your host already sets `BOT_DISPLAY_NAME` or `STREAMING_NAME`, update those
-values to the new branding; environment settings override the defaults.
+`BOT_DISPLAY_NAME=Kuroo` controls the plain username. `NAME_STYLE_*` controls
+the per-server font, effect, and color as described above. If your host still sets
+`BOT_DISPLAY_NAME` to the earlier Unicode lettering, change it to `Kuroo` so the
+real name style is applied to ordinary letters. Existing `STREAMING_NAME` settings
+continue to override the default security and moderation title.
 Restart the hosted bot after deploying to apply these settings and sync `/anime`.

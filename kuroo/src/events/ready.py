@@ -9,10 +9,13 @@ from kuroo.config.config import users as users_config
 from kuroo.engine.Bot import AutoShardedBot
 import asyncio
 import requests
+import aiohttp
 from kuroo.style import color
 
 import discord
 from kuroo.workflows.presence import streaming_activity
+from kuroo.workflows.name_style import NameStyleResult, apply_name_style
+from kuroo.src.checks import checks
 
 from kuroo.src.startup import giveaways
 from kuroo.src.startup import j2c_controller
@@ -21,6 +24,7 @@ class ready(commands.Cog):
         self.bot:AutoShardedBot = bot
         self._activity_task = None
         self._profile_updated = False
+        self._styled_guilds = set()
 
 
         
@@ -88,8 +92,67 @@ class ready(commands.Cog):
         except:
             pass
         logger.cog("J2C Controllers Resumed")
+        await self.sync_name_styles()
 
         
+
+    async def style_guild(self, guild):
+        if not self.bot.BotConfig.NAME_STYLE_ENABLED or guild.id in self._styled_guilds:
+            return
+        # Mark before awaiting: ready and join events can overlap.
+        self._styled_guilds.add(guild.id)
+        try:
+            result = await apply_name_style(self.bot, guild)
+            if result is NameStyleResult.APPLIED:
+                logger.info(f"Bot name style confirmed for guild {guild.id}")
+            else:
+                logger.warning(f"Discord did not confirm bot name style for guild {guild.id}; "
+                               "the styling fields may not be supported.")
+        except (discord.HTTPException, aiohttp.ClientError, asyncio.TimeoutError, ValueError) as error:
+            status = getattr(error, 'status', 'configuration')
+            logger.warning(f"Could not apply bot name style for guild {guild.id} ({status}).")
+
+    async def sync_name_styles(self):
+        for guild in self.bot.guilds:
+            await self.style_guild(guild)
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        await self.style_guild(guild)
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild):
+        self._styled_guilds.discard(guild.id)
+
+    @commands.hybrid_command(name="setbotstyle", help="Apply the configured bot name style in this server")
+    @commands.guild_only()
+    @commands.has_guild_permissions(administrator=True)
+    @checks.ignore_check()
+    @checks.blacklist_check()
+    @commands.cooldown(rate=1, per=60, type=commands.BucketType.guild)
+    async def setbotstyle(self, ctx: commands.Context):
+        await ctx.defer(ephemeral=True)
+        if not self.bot.BotConfig.NAME_STYLE_ENABLED:
+            await ctx.send("Bot name styling is disabled in the host configuration.", ephemeral=True)
+            return
+        try:
+            result = await apply_name_style(self.bot, ctx.guild)
+        except discord.HTTPException as error:
+            await ctx.send(f"Discord rejected the name style (HTTP {error.status}). "
+                           "Check bot permissions and whether this server supports name styling.", ephemeral=True)
+            return
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            await ctx.send("Discord could not be reached. Please retry later.", ephemeral=True)
+            return
+        except ValueError:
+            await ctx.send("The host's name style settings are invalid. Check the font, effect and colors.",
+                           ephemeral=True)
+            return
+        if result is NameStyleResult.APPLIED:
+            await ctx.send("Bot name style applied and confirmed for this server.", ephemeral=True)
+        else:
+            await ctx.send("Discord accepted the request but did not confirm the name style. "
+                           "The styling fields may not be supported in this server.", ephemeral=True)
 
     async def update_display_name(self):
         # At most one attempt per process; reconnects must not repeat profile writes.

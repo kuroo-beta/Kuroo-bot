@@ -25,6 +25,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('help', bot.all_commands)
             self.assertIsNotNone(bot.tree.get_command('help'))
             self.assertIsNotNone(bot.tree.get_command('anime'))
+            self.assertIsNotNone(bot.tree.get_command('setbotstyle'))
             for name in ('cuddle', 'poke', 'highfive', 'blush', 'cheer'):
                 self.assertIn(name, bot.all_commands)
             for name in ('gay', 'lesbian', 'horny', 'simp', 'iq', 'cute', 'fakeban', 'fakekick', 'nukeall', 'ship'):
@@ -79,8 +80,8 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sent[1]['activity'].to_dict()['state'], '2 servers • 10 users • 1 shard')
 
     async def test_display_name_changes_once_and_blank_preserves_current_name(self):
-        for desired in ('𝕂𝕌ℝ𝕆𝕆', ''):
-            bot = SimpleNamespace(user=SimpleNamespace(name='Kuroo', edit=AsyncMock()),
+        for desired in ('Kuroo', ''):
+            bot = SimpleNamespace(user=SimpleNamespace(name='Old Name', edit=AsyncMock()),
                                   BotConfig=SimpleNamespace(DISPLAY_NAME=desired))
             cog = ready(bot)
             await cog.update_display_name()

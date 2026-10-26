@@ -9,7 +9,11 @@ class BotConfigClass:
     PREFIX = os.getenv("PREFIX", "?")
     SHARD_COUNT = int(os.getenv("SHARD_COUNT", 2))
     NAME = os.getenv("BOT_NAME", "Kuroo")
-    DISPLAY_NAME = os.getenv("BOT_DISPLAY_NAME", "𝕂𝕌ℝ𝕆𝕆")
+    DISPLAY_NAME = os.getenv("BOT_DISPLAY_NAME", "Kuroo")
+    NAME_STYLE_ENABLED = os.getenv("NAME_STYLE_ENABLED", "True").lower() == "true"
+    NAME_STYLE_FONT_ID = os.getenv("NAME_STYLE_FONT_ID", "4")
+    NAME_STYLE_EFFECT_ID = os.getenv("NAME_STYLE_EFFECT_ID", "4")
+    NAME_STYLE_COLORS = os.getenv("NAME_STYLE_COLORS", "FFFFFF")
     STREAMING_NAME = os.getenv("STREAMING_NAME", "Kuroo • Security & Moderation")
     STREAMING_URL = os.getenv("STREAMING_URL", "https://www.twitch.tv/discord")
     DASHBOARD_ENABLED = os.getenv("DASHBOARD_ENABLED", "True").lower() == "true"

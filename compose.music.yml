@@ -1,0 +1,11 @@
+services:
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4-alpine@sha256:96be2be7ee50d35a9bd42c8c7b99e2a4b741f09123066c1ebb9e014dd7db204d
+    restart: unless-stopped
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx512m
+      LAVALINK_SERVER_PASSWORD: ${LAVALINK_PASSWORD:?Set LAVALINK_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:2333:2333"
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro

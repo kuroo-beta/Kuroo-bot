@@ -11,10 +11,15 @@ class BotConfigClass:
     NAME = os.getenv("BOT_NAME", "Kuroo")
     DISPLAY_NAME = os.getenv("BOT_DISPLAY_NAME", "Kuroo")
     NAME_STYLE_ENABLED = os.getenv("NAME_STYLE_ENABLED", "True").lower() == "true"
-    NAME_STYLE_SCOPE = os.getenv("NAME_STYLE_SCOPE", "global")
+    NAME_STYLE_SCOPE = os.getenv("NAME_STYLE_SCOPE", "guild")
     NAME_STYLE_FONT_ID = os.getenv("NAME_STYLE_FONT_ID", "4")
     NAME_STYLE_EFFECT_ID = os.getenv("NAME_STYLE_EFFECT_ID", "4")
     NAME_STYLE_COLORS = os.getenv("NAME_STYLE_COLORS", "FFFFFF")
+    TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID", "")
+    TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET", "")
+    LAVALINK_URI = os.getenv("LAVALINK_URI", "http://127.0.0.1:2333")
+    LAVALINK_PASSWORD = os.getenv("LAVALINK_PASSWORD", "youshallnotpass")
+    MUSIC_SEARCH_SOURCE = os.getenv("MUSIC_SEARCH_SOURCE", "ytmsearch")
     STREAMING_NAME = os.getenv("STREAMING_NAME", "Kuroo • Security & Moderation")
     STREAMING_URL = os.getenv("STREAMING_URL", "https://www.twitch.tv/discord")
     DASHBOARD_ENABLED = os.getenv("DASHBOARD_ENABLED", "True").lower() == "true"

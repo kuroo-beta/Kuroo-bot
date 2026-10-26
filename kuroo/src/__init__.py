@@ -1,7 +1,5 @@
 import asyncio
-import importlib
 
-from kuroo.bridge import lavalink
 from kuroo.console.logging import logger
 from kuroo.engine.Bot import AutoShardedBot
 from kuroo.src.startup import tickets_creator
@@ -24,6 +22,7 @@ from .commands.music import Music
 from .commands.root import Root
 from .commands.security import Security
 from .commands.safety import Safety
+from .commands.server_tools import ServerTools
 from .commands.ticket import Ticket
 from .commands.utils import Utils
 from .commands.voice import Voice
@@ -60,6 +59,7 @@ async def setup(bot: AutoShardedBot):
         Utils(bot=bot),
         Security(bot=bot),
         Safety(bot=bot),
+        ServerTools(bot=bot),
         Automod(bot=bot),
         Moderation(bot=bot),
         Ticket(bot=bot),
@@ -103,12 +103,6 @@ async def setup(bot: AutoShardedBot):
 
     await asyncio.gather(*[bot.add_cog(unit) for unit in units_to_mount])
     logger.cog(f"Mounted {len(units_to_mount)} src units")
-
-    try:
-        importlib.reload(lavalink)
-        asyncio.create_task(lavalink.on_node(bot))
-    except Exception:
-        pass
 
     try:
         asyncio.create_task(check_guilds_subscription(bot))

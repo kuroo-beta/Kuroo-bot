@@ -37,15 +37,13 @@ require running a second bot or installing the reference project.
 The name text defaults to **Kuroo** (`BOT_DISPLAY_NAME=Kuroo`). The style payload follows the [provided name-style guide](https://github.com/songshado061-oss/style-name-Bot-Discord):
 Jellybean font (`NAME_STYLE_FONT_ID=4`), Toon effect (`NAME_STYLE_EFFECT_ID=4`),
 and white (`NAME_STYLE_COLORS=FFFFFF`) to match the rounded, outlined reference.
-`NAME_STYLE_SCOPE=global` now attempts the style on the global profile via
-`PATCH /users/@me`, once per process at startup. Global support is experimental;
-the guide only establishes the per-server method. Bot admins who also have server
-administrator permission can retry with `/setbotstyle` (or `?setbotstyle`).
-
-Set `NAME_STYLE_SCOPE=guild` to use the working per-server method on startup and
-when joining servers; server administrators can retry in their own server.
-Changing scope does not remove previously applied server styles, which may override
-the global appearance. Styling is separate from streaming.
+`NAME_STYLE_SCOPE=guild` is the default again. Kuroo applies the style to its
+profile in each server at startup and when joining a server. Server administrators
+can retry with `/setbotstyle` (or `?setbotstyle`). **Existing deployments must change
+`NAME_STYLE_SCOPE=global` to `NAME_STYLE_SCOPE=guild` in their host environment.**
+Styling is separate from streaming. Previously applied global styles are retained;
+server profile styling takes precedence where supported. The optional experimental
+`global` scope remains available for bot admins.
 
 The guide's `display_name_font_id`, `display_name_effect_id`, and
 `display_name_colors` fields are absent from Discord's current public
@@ -71,7 +69,7 @@ See the [original project](https://github.com/RayExo/Reo-Bot) for its screenshot
 - Discord bot with hybrid commands
 - MongoDB Database
 - FastAPI dashboard
-- Music controller with live artwork, queue, and activity
+- Music player with playlists, queue editing, filters, favourites, autoplay and 24/7 voice
 - Security and automod controls
 - Tickets, giveaways, welcomer, and command management
 - Server leveling, rank/leaderboard images, global coins, banking and cosmetic titles
@@ -122,7 +120,8 @@ are `?help` and `/help`; servers can configure their own prefix.
 
 For the dashboard, also set `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and a
 random `DASHBOARD_SECRET`, or set `DASHBOARD_ENABLED=False` for a bot-only run.
-Music requires a reachable Lavalink node configured in `kuroo/bridge/lavalink.py`.
+Music requires a reachable **Lavalink v4** node. Set `LAVALINK_URI`,
+`LAVALINK_PASSWORD`, and `MUSIC_SEARCH_SOURCE` in the host environment; see Music below.
 
 ### 3. Discord application setup
 
@@ -563,15 +562,117 @@ grant roles. Removing an interest choice or disabling onboarding retains existin
 member assignments. Settings are stored in MongoDB (`safety_onboard`); persistent
 panel buttons are registered again after restart.
 
-### Suggested next additions
+#
+## Music (Akeno-inspired Python port)
 
-1. **Invite tracking:** inviter attribution, join/leave totals and moderator lookup.
-   Handle missing invite permissions, vanity links and ambiguous simultaneous joins
-   explicitly instead of guessing an inviter.
-2. **Live staff dashboard:** a Discord message showing latency, shard health,
-   active lockdowns and pending restores. Restrict setup to server managers.
-3. **YouTube/Twitch alerts:** useful for community engagement once the security
-   workflows are verified in your server. This needs provider polling, deduplication
-   and Twitch credentials.
+The requested [Akeno reference](https://github.com/Ze-xN/Akeno/tree/4f03a44e0725d388f96602e2495b615f267bd7e6)
+is a JavaScript bot. Kuroo implements the selected music behavior independently
+in Python with Wavelink 3.4.1; no second bot or JavaScript runtime is needed.
+No reference code or assets are bundled. This replaces Kuroo's old music command,
+controller and manual queue-event implementation. Wavelink now advances queues.
 
-These are follow-up options; the current update adds Panic Shield and onboarding.
+| Command | Purpose |
+| --- | --- |
+| `/play search` (`?p`) | Search for a song, or enqueue a supported playlist URL. |
+| `/pause`, `/resume`, `/stop`, `/current`, `/volume`, `/queue [page]` | Playback and session controls. |
+| `/loop mode` | `off`, `track`, or `queue` repeat. |
+| `/autoplay` | Toggle related-song recommendations after the explicit queue. |
+| `/music skip`, `seek seconds`, `replay`, `previous` | Track navigation. Prefix `?skip` remains available. |
+| `/music shuffle`, `clear`, `remove position`, `move position destination`, `skipto position` | Edit the upcoming queue. Positions start at 1. |
+| `/music filter preset` | Reset, bassboost, nightcore, daycore, slowed, vaporwave, chipmunk, karaoke, 8d or vibrato. |
+| `/music history` | Recent songs from this session. |
+| `/music like`, `favourites [page]`, `unlike position`, `playliked position` | Personal Mongo-backed saved songs, up to 100 per user. |
+| `/music join`, `leave` | Connect or disconnect. Leaving a 24/7 session requires Manage Server. |
+| `/music stay enabled` | Manage Server: save a 24/7 voice connection, restored when Lavalink becomes ready after restart. |
+| `/music setup`, `reset`, `settings [volume] [repeat] [autoplay]` | Manage Server: request-channel setup and new-session defaults. |
+
+All playback controls and controller buttons require the same voice channel as
+the bot and respect the bot blacklist and ignored users/channels. Requests are
+bounded to 500 upcoming tracks. Only HTTPS YouTube, Spotify, SoundCloud and Deezer
+links are accepted; provider support depends on the node's source plugins. Existing
+premium rules remain: links/playlists require server premium or a user no-prefix
+subscription; free servers start at 80% volume and changing the default volume
+requires server premium. Name searches and current-session volume remain free.
+
+The compact Components V2 controller refreshes every 30 seconds and on track start,
+with pause/resume, skip, stop and favourite buttons. Existing request-channel IDs,
+controller message IDs and dashboard music defaults are reused. `/play` also works
+when a request channel is configured. Send a plain song name in that channel to
+request music; recognized commands are not searched as songs. Reset removes the
+configured request channel as before.
+
+24/7 preserves the **voice channel connection**, not the queue, history, filters or
+playback position across process restarts. `/stop` clears the queue and stops audio;
+in 24/7 mode it stays connected. `/music leave` disables 24/7 and disconnects.
+Without 24/7, inactivity disconnects after 180 seconds or Wavelink's empty-channel
+threshold. Favourites and server settings survive restarts. Lyrics, mood/radio,
+artist recommendations and Akeno's premium/admin systems are not ported.
+
+### Lavalink configuration
+
+Configure a [Lavalink v4 server](https://lavalink.dev/getting-started/index.html)
+with the source plugins required for your providers (including a compatible
+[YouTube source plugin](https://github.com/lavalink-devs/youtube-source) for YouTube
+search). Kuroo no longer connects to the old hardcoded public node. Example host
+variables, using a node reachable from the bot's network:
+
+```dotenv
+LAVALINK_URI=http://127.0.0.1:2333
+LAVALINK_PASSWORD=your-node-password
+MUSIC_SEARCH_SOURCE=ytmsearch
+NAME_STYLE_SCOPE=guild
+```
+
+An optional local Docker backend is included. Set a private `LAVALINK_PASSWORD`
+in `.env`, then run `docker compose -f compose.music.yml up -d`. The pinned
+Lavalink 4.2.2 image and YouTube plugin 1.18.2 expose only localhost port 2333.
+`docker compose -f compose.music.yml down` stops it. The bot runs separately via
+`python main.py`. If the bot runs in another container or on another host, point
+`LAVALINK_URI` at a node reachable from that network. Spotify/Deezer resolution
+needs additional node plugins; the bundled configuration enables YouTube and
+SoundCloud only. Provider restrictions and upstream changes can still prevent
+specific tracks from loading. During validation, YouTube Music search succeeded;
+the bundled SoundCloud resolver returned an upstream format error. Use YouTube
+while that resolver issue persists.
+
+Use `ytsearch`, `ytmsearch` or `scsearch`. A link alone does not guarantee the node
+can resolve that provider. Music connection failures retry without blocking other
+bot features. Deploy updated `main`, configure the node/environment, and restart
+the bot; a Git push does not restart the hosted process.
+
+## Invite tracking, staff dashboard and creator alerts
+
+All `/servertools` operations require **Manage Server**. These features are opt-in,
+with persistent server settings in MongoDB.
+
+| Command | Purpose |
+| --- | --- |
+| `/servertools tracking enabled` | Enable/disable tracking. The bot needs Manage Server to read invites, plus the member intent. |
+| `/servertools invites member` | Attributed joins, departures and memberships without a recorded departure. Rejoins count separately. |
+| `/servertools inviteinfo member` | Most recent recorded join evidence, or Unknown. |
+| `/servertools dashboard channel` | Create one health/status message in a staff channel hidden from @everyone. |
+| `/servertools dashboardoff` | Stop updates and remove the message. |
+| `/servertools alertadd provider identity channel` | Subscribe to `youtube` (24-character UC channel ID) or `twitch` (channel login). |
+| `/servertools alertremove provider identity` | Remove a subscription. |
+| `/servertools alerts` | List this server's subscriptions (up to 10). |
+
+Invite attribution is best effort: only one observed use increase of exactly one
+on an unchanged invite set is attributed. Concurrent joins, missing permissions,
+missing startup baseline, deleted/expired invites, vanity joins, or ambiguous
+changes show **Unknown**. Discord does not expose an authoritative invite for each
+join. No past joins are reconstructed. Disabling tracking retains history.
+
+The staff message refreshes every minute: latency, shard counts, members, default
+spam protection, Panic Shield alert state, lockdown state and pending permission
+snapshots. It does not expose private tokens or member records. If its message is
+deleted, updates stop; recreate it with `/servertools dashboard`.
+
+Creator feeds are checked every minute while the bot is online. YouTube uses its
+public upload feed; Twitch needs host variables `TWITCH_CLIENT_ID` and
+`TWITCH_CLIENT_SECRET` (app client credentials). The streaming presence URL is
+independent and does not subscribe to a channel. A new subscription starts at the
+current item and announces only later uploads/live sessions. Offline Twitch
+channels do not announce; a new stream ID announces once. Titles cannot ping roles
+or users. Failed sends retry. Polling announces the latest item and can miss uploads
+or complete streams between polls/downtime; a crash after sending but before saving
+the delivery marker can cause a duplicate. Alerts include no automatic role ping.

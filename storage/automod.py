@@ -4,7 +4,7 @@ CollectionName = 'automod'
 
 _store = CollectionStore(
     name=CollectionName,
-    defaults={'antilink_enabled': False, 'antilink_whitelist_roles': [], 'antilink_whitelist_channels': [], 'antispam_enabled': False, 'antispam_whitelist_roles': [], 'antispam_whitelist_channels': [], 'antispam_max_messages': 10, 'antispam_max_interval': 30, 'antispam_max_mentions': 5, 'antispam_max_emojis': 10, 'antispam_max_caps': 50, 'antispam_punishment': 'mute', 'antispam_punishment_duration': 10, 'antibadwords_enabled': False, 'antibadwords_whitelist_roles': [], 'antibadwords_whitelist_channels': [], 'antibadwords_words': [], 'created_at': NOW},
+    defaults={'antilink_enabled': False, 'antilink_whitelist_roles': [], 'antilink_whitelist_channels': [], 'antispam_enabled': True, 'antispam_whitelist_roles': [], 'antispam_whitelist_channels': [], 'antispam_max_messages': 10, 'antispam_max_interval': 30, 'antispam_max_mentions': 5, 'antispam_max_emojis': 10, 'antispam_max_caps': 50, 'antispam_punishment': 'mute', 'antispam_punishment_duration': 10, 'antibadwords_enabled': False, 'antibadwords_whitelist_roles': [], 'antibadwords_whitelist_channels': [], 'antibadwords_words': [], 'created_at': NOW},
     unique_sets=[['guild_id']],
     json_fields=set(['antibadwords_whitelist_channels', 'antibadwords_whitelist_roles', 'antibadwords_words', 'antilink_whitelist_channels', 'antilink_whitelist_roles', 'antispam_whitelist_channels', 'antispam_whitelist_roles']),
     datetime_fields=set(['created_at']),

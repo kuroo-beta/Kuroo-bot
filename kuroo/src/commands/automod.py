@@ -249,8 +249,8 @@ class Automod(commands.Cog):
 
             if not (
                 Automod_Cache.get("antilink_enabled", False)
-                and Automod_Cache.get("antispam_enabled", False)
-                and Automod_Cache.get("antibadwords_enabled", False)
+                or Automod_Cache.get("antispam_enabled", False)
+                or Automod_Cache.get("antibadwords_enabled", False)
             ):
 
                 await ctx.send(

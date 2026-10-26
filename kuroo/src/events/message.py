@@ -637,8 +637,10 @@ class message(commands.Cog):
             guild_cache = cache.automod.get(str(message.guild.id), {})
 
             if not guild_cache:
-
-                return
+                # Insert returns existing settings unchanged after a cache miss.
+                guild_cache = await storage.automod.insert(guild_id=message.guild.id)
+                if not guild_cache:
+                    return
 
             if not guild_cache.get("antispam_enabled", False):
 

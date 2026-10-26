@@ -429,3 +429,20 @@ and server; the automated tests use mocked HTTP transports.
 MIT License
 
 Copyright (c) 2026 Codex Development
+
+### Default AutoMod protection
+
+AutoMod spam protection is enabled for servers without saved AutoMod settings,
+starting with the first member message. It checks repeated messages, message
+floods, mass mentions, excessive emojis, and excessive capitals using the existing
+limits, exemptions, and punishment settings. The bot needs the corresponding
+Discord permissions to delete messages and apply punishments.
+
+Server administrators can use `/automod disable` to turn it off and `/automod enable`
+to turn it back on, or adjust it with `/automod antispam`. Saved settings (including
+disabled protection) survive restarts and are never overwritten by the defaults.
+Existing saved off settings remain off because older records do not distinguish
+an untouched default from an administrator's choice. Resetting AutoMod removes
+the saved choice and restores the default protection on the next member message.
+Link and bad-word filters still require administrators to configure their Discord
+AutoMod rules and word lists separately.

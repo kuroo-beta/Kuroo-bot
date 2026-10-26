@@ -34,16 +34,23 @@ require running a second bot or installing the reference project.
 
 ### Discord profile name effects
 
-The name text defaults to **Kuroo** (`BOT_DISPLAY_NAME=Kuroo`). Per-server
-name styling follows the [provided name-style guide](https://github.com/songshado061-oss/style-name-Bot-Discord):
+The name text defaults to **Kuroo** (`BOT_DISPLAY_NAME=Kuroo`). The style payload follows the [provided name-style guide](https://github.com/songshado061-oss/style-name-Bot-Discord):
 Jellybean font (`NAME_STYLE_FONT_ID=4`), Toon effect (`NAME_STYLE_EFFECT_ID=4`),
 and white (`NAME_STYLE_COLORS=FFFFFF`) to match the rounded, outlined reference.
-The bot attempts styling on startup and when joining a server. Server administrators
-can retry with `/setbotstyle` (or `?setbotstyle`). Styling is separate from streaming.
+`NAME_STYLE_SCOPE=global` now attempts the style on the global profile via
+`PATCH /users/@me`, once per process at startup. Global support is experimental;
+the guide only establishes the per-server method. Bot admins who also have server
+administrator permission can retry with `/setbotstyle` (or `?setbotstyle`).
+
+Set `NAME_STYLE_SCOPE=guild` to use the working per-server method on startup and
+when joining servers; server administrators can retry in their own server.
+Changing scope does not remove previously applied server styles, which may override
+the global appearance. Styling is separate from streaming.
 
 The guide's `display_name_font_id`, `display_name_effect_id`, and
 `display_name_colors` fields are absent from Discord's current public
-[Modify Current Member documentation](https://docs.discord.com/developers/resources/guild#modify-current-member).
+[Modify Current Member documentation](https://docs.discord.com/developers/resources/guild#modify-current-member)
+and [Modify Current User documentation](https://docs.discord.com/developers/resources/user#modify-current-user).
 Kuroo sends them through its existing authenticated bot HTTP client and only reports
 success when the response echoes the requested values. A 200 response without those
 values is reported as unconfirmed, since Discord may ignore unsupported fields.
@@ -52,8 +59,8 @@ The actual rendering must be checked in Discord with Display Name Styles enabled
 Set `NAME_STYLE_ENABLED=False` to stop automatic style requests; it does not remove
 an already-applied style. Set the font/effect IDs and comma-separated six-digit hex
 colors in the host environment to customize the style. Gradient (effect 2) requires
-two colors; other effects require one. Failures are logged per server and do not
-stop startup. Reconnects do not repeat attempts for the same server in that process.
+two colors; other effects require one. Failures are logged and do not stop startup.
+Reconnects do not repeat global attempts or attempts for the same server in that process.
 
 ## Upstream showcase
 
@@ -482,7 +489,7 @@ link. This replaces the old rotating activity text, including its command hints.
 Discord clients decide how the card and its fields render.
 
 `BOT_DISPLAY_NAME=Kuroo` controls the plain username. `NAME_STYLE_*` controls
-the per-server font, effect, and color as described above. If your host still sets
+the profile scope, font, effect, and color as described above. If your host still sets
 `BOT_DISPLAY_NAME` to the earlier Unicode lettering, change it to `Kuroo` so the
 real name style is applied to ordinary letters. Existing `STREAMING_NAME` settings
 continue to override the default security and moderation title.

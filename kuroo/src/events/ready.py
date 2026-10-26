@@ -14,7 +14,7 @@ from kuroo.style import color
 
 import discord
 from kuroo.workflows.presence import streaming_activity
-from kuroo.workflows.name_style import NameStyleResult, apply_name_style
+from kuroo.workflows.name_style import NameStyleResult, apply_name_style, name_style_scope
 from kuroo.src.checks import checks
 
 from kuroo.src.startup import giveaways
@@ -25,6 +25,7 @@ class ready(commands.Cog):
         self._activity_task = None
         self._profile_updated = False
         self._styled_guilds = set()
+        self._global_style_attempted = False
 
 
         
@@ -97,7 +98,9 @@ class ready(commands.Cog):
         
 
     async def style_guild(self, guild):
-        if not self.bot.BotConfig.NAME_STYLE_ENABLED or guild.id in self._styled_guilds:
+        if (not self.bot.BotConfig.NAME_STYLE_ENABLED
+                or name_style_scope(self.bot.BotConfig) != 'guild'
+                or guild.id in self._styled_guilds):
             return
         # Mark before awaiting: ready and join events can overlap.
         self._styled_guilds.add(guild.id)
@@ -113,18 +116,45 @@ class ready(commands.Cog):
             logger.warning(f"Could not apply bot name style for guild {guild.id} ({status}).")
 
     async def sync_name_styles(self):
+        if not self.bot.BotConfig.NAME_STYLE_ENABLED:
+            return
+        try:
+            scope = name_style_scope(self.bot.BotConfig)
+        except ValueError:
+            logger.warning("NAME_STYLE_SCOPE must be global or guild.")
+            return
+        if scope == 'global':
+            if self._global_style_attempted:
+                return
+            self._global_style_attempted = True
+            try:
+                result = await apply_name_style(self.bot)
+                if result is NameStyleResult.APPLIED:
+                    logger.info("Global bot name style confirmed by Discord.")
+                else:
+                    logger.warning("Discord did not confirm the global bot name style; "
+                                   "global styling may not be supported.")
+            except (discord.HTTPException, aiohttp.ClientError, asyncio.TimeoutError, ValueError) as error:
+                status = getattr(error, 'status', 'network or configuration')
+                logger.warning(f"Could not apply global bot name style ({status}).")
+            return
         for guild in self.bot.guilds:
             await self.style_guild(guild)
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
-        await self.style_guild(guild)
+        if self.bot.BotConfig.NAME_STYLE_ENABLED:
+            try:
+                if name_style_scope(self.bot.BotConfig) == 'guild':
+                    await self.style_guild(guild)
+            except ValueError:
+                logger.warning("NAME_STYLE_SCOPE must be global or guild.")
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
         self._styled_guilds.discard(guild.id)
 
-    @commands.hybrid_command(name="setbotstyle", help="Apply the configured bot name style in this server")
+    @commands.hybrid_command(name="setbotstyle", help="Apply the configured global or server bot name style")
     @commands.guild_only()
     @commands.has_guild_permissions(administrator=True)
     @checks.ignore_check()
@@ -136,23 +166,28 @@ class ready(commands.Cog):
             await ctx.send("Bot name styling is disabled in the host configuration.", ephemeral=True)
             return
         try:
+            scope = name_style_scope(self.bot.BotConfig)
+            if scope == 'global' and not checks.check_is_admin_predicate(ctx.author):
+                await ctx.send("Only bot admins can change the global bot name style.", ephemeral=True)
+                return
+            target = 'the global profile' if scope == 'global' else 'this server'
             result = await apply_name_style(self.bot, ctx.guild)
         except discord.HTTPException as error:
             await ctx.send(f"Discord rejected the name style (HTTP {error.status}). "
-                           "Check bot permissions and whether this server supports name styling.", ephemeral=True)
+                           "Check bot permissions and whether Discord supports the configured style scope.", ephemeral=True)
             return
         except (aiohttp.ClientError, asyncio.TimeoutError):
             await ctx.send("Discord could not be reached. Please retry later.", ephemeral=True)
             return
         except ValueError:
-            await ctx.send("The host's name style settings are invalid. Check the font, effect and colors.",
+            await ctx.send("The host's name style settings are invalid. Check the scope, font, effect and colors.",
                            ephemeral=True)
             return
         if result is NameStyleResult.APPLIED:
-            await ctx.send("Bot name style applied and confirmed for this server.", ephemeral=True)
+            await ctx.send(f"Bot name style applied and confirmed for {target}.", ephemeral=True)
         else:
-            await ctx.send("Discord accepted the request but did not confirm the name style. "
-                           "The styling fields may not be supported in this server.", ephemeral=True)
+            await ctx.send(f"Discord accepted the request but did not confirm the name style for {target}. "
+                           "The styling fields may not be supported for this scope.", ephemeral=True)
 
     async def update_display_name(self):
         # At most one attempt per process; reconnects must not repeat profile writes.

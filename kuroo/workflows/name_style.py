@@ -1,4 +1,4 @@
-"""Per-server bot name styling using the fields described by the reference guide.
+"""Bot name styling using the fields described by the reference guide.
 
 These fields are not part of Discord's published API contract. A successful HTTP
 request alone does not prove Discord accepted them, so verify the returned values.
@@ -33,9 +33,22 @@ def name_style_payload(config):
     }
 
 
-async def apply_name_style(bot, guild):
+def name_style_scope(config):
+    scope = config.NAME_STYLE_SCOPE.strip().lower()
+    if scope not in {'global', 'guild'}:
+        raise ValueError('NAME_STYLE_SCOPE must be global or guild')
+    return scope
+
+
+async def apply_name_style(bot, guild=None):
     payload = name_style_payload(bot.BotConfig)
-    route = Route('PATCH', '/guilds/{guild_id}/members/@me', guild_id=guild.id)
+    scope = name_style_scope(bot.BotConfig)
+    if scope == 'global':
+        route = Route('PATCH', '/users/@me')
+    else:
+        if guild is None:
+            raise ValueError('A guild is required for per-server styling')
+        route = Route('PATCH', '/guilds/{guild_id}/members/@me', guild_id=guild.id)
     result = await bot.http.request(route, json=payload)
     if isinstance(result, dict) and all(result.get(key) == value for key, value in payload.items()):
         return NameStyleResult.APPLIED

@@ -11,6 +11,7 @@ class BotConfigClass:
     NAME = os.getenv("BOT_NAME", "Kuroo")
     DISPLAY_NAME = os.getenv("BOT_DISPLAY_NAME", "Kuroo")
     NAME_STYLE_ENABLED = os.getenv("NAME_STYLE_ENABLED", "True").lower() == "true"
+    NAME_STYLE_SCOPE = os.getenv("NAME_STYLE_SCOPE", "global")
     NAME_STYLE_FONT_ID = os.getenv("NAME_STYLE_FONT_ID", "4")
     NAME_STYLE_EFFECT_ID = os.getenv("NAME_STYLE_EFFECT_ID", "4")
     NAME_STYLE_COLORS = os.getenv("NAME_STYLE_COLORS", "FFFFFF")

@@ -63,7 +63,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         bot = SimpleNamespace(
             wait_until_ready=AsyncMock(), is_closed=lambda: len(sent) >= 2,
             change_presence=change_presence,
-            BotConfig=SimpleNamespace(STREAMING_NAME='Kuroo Music', STREAMING_URL='https://www.twitch.tv/discord'),
+            BotConfig=SimpleNamespace(STREAMING_NAME='Kuroo • Security & Moderation', STREAMING_URL='https://www.twitch.tv/discord'),
             guilds=[SimpleNamespace(member_count=10)], shard_count=1,
         )
         with patch('kuroo.src.events.ready.asyncio.sleep', new=AsyncMock()):
@@ -73,13 +73,13 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(item['status'], discord.Status.online)
             self.assertEqual(payload['type'], discord.ActivityType.streaming.value)
             self.assertEqual(payload['url'], 'https://www.twitch.tv/discord')
-            self.assertEqual(payload['name'], 'Kuroo Music')
-            self.assertEqual(payload['details'], 'Kuroo Music')
+            self.assertEqual(payload['name'], 'Kuroo • Security & Moderation')
+            self.assertEqual(payload['details'], 'Kuroo • Security & Moderation')
         self.assertEqual(sent[0]['activity'].to_dict()['state'], '1 server • 10 users • 1 shard')
         self.assertEqual(sent[1]['activity'].to_dict()['state'], '2 servers • 10 users • 1 shard')
 
     async def test_display_name_changes_once_and_blank_preserves_current_name(self):
-        for desired in ('ⓀⓊⓇⓄⓄ', ''):
+        for desired in ('𝕂𝕌ℝ𝕆𝕆', ''):
             bot = SimpleNamespace(user=SimpleNamespace(name='Kuroo', edit=AsyncMock()),
                                   BotConfig=SimpleNamespace(DISPLAY_NAME=desired))
             cog = ready(bot)
@@ -92,7 +92,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_rejected_profile_name_does_not_retry_or_block_presence(self):
         error = discord.HTTPException(SimpleNamespace(status=400, reason='Bad request'), 'invalid name')
         bot = SimpleNamespace(user=SimpleNamespace(name='Kuroo', edit=AsyncMock(side_effect=error)),
-                              BotConfig=SimpleNamespace(DISPLAY_NAME='ⓀⓊⓇⓄⓄ'))
+                              BotConfig=SimpleNamespace(DISPLAY_NAME='𝕂𝕌ℝ𝕆𝕆'))
         cog = ready(bot)
         with patch('kuroo.src.events.ready.logger'):
             await cog.update_display_name()

@@ -1,6 +1,6 @@
 # Kuroo
 
-Kuroo is a modern, multipurpose Discord bot featuring a seamless web dashboard, comprehensive server security, advanced music playback, and automated community management tools.
+Kuroo is an all-in-one Discord bot focused on server security and moderation, with a web dashboard, music, anime fun, and community management tools.
 
 ## Credits
 
@@ -26,22 +26,19 @@ require running a second bot or installing the reference project.
   renderer converts them to text displays, sections, and media before transmission.
 - Buttons and selects keep their callbacks. Partial edits retain the message body.
 - Long documents beyond Discord's V2 limits are supplied as `kuroo-details.txt`.
-- Presence starts with **Kuroo Devlopment**, rotates through a prefix hint and `/help`,
-  server/user statistics, and the website. Every rotation uses a **Streaming**
-  activity linked to `https://www.twitch.tv/discord` (the canonical form of the
-  requested mobile Twitch link). Presence is online so DND does not override it.
-  Set `STREAMING_URL` to change the stream link.
+- Presence shows **Kuroo • Security & Moderation**, with live server, user, and
+  shard counts. It uses a **Streaming** activity linked to
+  `https://www.twitch.tv/discord` and stays online.
+  Set `STREAMING_NAME` and `STREAMING_URL` to customize the title and Watch link.
 - The source bot's `.env` is excluded. Configure your own account and developer IDs.
 
 ### Discord profile name effects
 
-The requested **Headbang** name effect with gradient **#5b178c → #c09bd4** cannot
-be configured by this bot: Discord's documented
-[Modify Current User API](https://docs.discord.com/developers/resources/user#modify-current-user)
-exposes username/avatar/banner editing, with no font, effect or gradient name-style
-setter. These profile effects are separate from streaming presence. This update
-configures streaming; it does not apply a Headbang effect or gradient to the Discord
-profile name. Message containers continue to have no accent color.
+The default Discord name is **𝕂𝕌ℝ𝕆𝕆**, using outlined Unicode letters to
+approximate the decorative name in the reference. Set `BOT_DISPLAY_NAME` to
+customize it. Discord controls the font and does not provide a bot API for the
+reference's exact bubble font, animation, or gradient name effects. The streaming
+presence is configured separately from the profile name.
 
 ## Upstream showcase
 
@@ -464,14 +461,16 @@ is unavailable, the command asks you to retry. The generic rating and prank comm
 `ship`, and their aliases) have been removed from the fun menu for the anime-only scope.
 Moderation, music, economy, and other bot modules remain available.
 
-The streaming card has a fixed title (`STREAMING_NAME=Kuroo Music`) and live server,
+The streaming card has a fixed title (`STREAMING_NAME=Kuroo • Security & Moderation`) and live server,
 user, and shard counts, refreshed every minute. `STREAMING_URL` controls the Watch
 link. This replaces the old rotating activity text, including its command hints.
 Discord clients decide how the card and its fields render.
 
-`BOT_DISPLAY_NAME=ⓀⓊⓇⓄⓄ` requests a circled Unicode bot username at startup to
+`BOT_DISPLAY_NAME=𝕂𝕌ℝ𝕆𝕆` requests an outlined Unicode bot username at startup to
 approximate the reference's decorative name. It does not change avatars or banners.
 Set it to your preferred name, or leave it blank to preserve the existing username.
 The bot attempts the rename once per process, and a Discord rejection is logged
 without stopping the bot. Unicode appearance depends on the client's fonts.
+If your host already sets `BOT_DISPLAY_NAME` or `STREAMING_NAME`, update those
+values to the new branding; environment settings override the defaults.
 Restart the hosted bot after deploying to apply these settings and sync `/anime`.

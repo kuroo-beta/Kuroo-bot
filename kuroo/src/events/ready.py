@@ -12,6 +12,7 @@ import requests
 from kuroo.style import color
 
 import discord
+from kuroo.workflows.presence import streaming_activity
 
 from kuroo.src.startup import giveaways
 from kuroo.src.startup import j2c_controller
@@ -19,6 +20,7 @@ class ready(commands.Cog):
     def __init__(self, bot):
         self.bot:AutoShardedBot = bot
         self._activity_task = None
+        self._profile_updated = False
 
 
         
@@ -29,6 +31,7 @@ class ready(commands.Cog):
             if self.bot.BotConfig.DASHBOARD_ENABLED:
                 logger.web_startup_summary(self.bot)
             logger.success(f"Connected as {self.bot.user}")
+            await self.update_display_name()
             # The logged-in application is authoritative when client ID is omitted.
             self.bot.urls.INVITE = discord.utils.oauth_url(self.bot.user.id)
             if not self.bot.BotConfig.DISCORD_CLIENT_ID:
@@ -88,28 +91,25 @@ class ready(commands.Cog):
 
         
 
+    async def update_display_name(self):
+        # At most one attempt per process; reconnects must not repeat profile writes.
+        if self._profile_updated:
+            return
+        self._profile_updated = True
+        desired = self.bot.BotConfig.DISPLAY_NAME.strip()
+        if desired and self.bot.user.name != desired:
+            try:
+                await self.bot.user.edit(username=desired)
+            except discord.HTTPException as error:
+                logger.warning(f"Discord rejected the configured bot display name (HTTP {error.status}).")
+
     async def activity(self):
         await self.bot.wait_until_ready()
 
-        activities = [
-            lambda: "Kuroo Devlopment",
-            lambda: f"{self.bot.BotConfig.PREFIX}help | /help",
-            lambda: "/help",
-            lambda: f"{len(self.bot.guilds)} servers",
-            lambda: f"{sum(g.member_count for g in self.bot.guilds if g.member_count)} users",
-            lambda: f"{len(self.bot.commands)} commands",
-            lambda: getattr(self.bot.urls, "WEBSITE", "Website"),
-        ]
-
-        index = 0
         while not self.bot.is_closed():
             try:
-                activity = discord.Streaming(
-                    name=activities[index % len(activities)](), url=self.bot.BotConfig.STREAMING_URL
-                )
+                activity = streaming_activity(self.bot.BotConfig, self.bot.guilds, self.bot.shard_count)
                 await self.bot.change_presence(status=discord.Status.online, activity=activity)
-                # logger.system(f"Presence Updated -> {activity.type.name} {activity.name}")
-                index += 1
                 await asyncio.sleep(60)
 
             except discord.ConnectionClosed:

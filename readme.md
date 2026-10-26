@@ -446,3 +446,32 @@ an untouched default from an administrator's choice. Resetting AutoMod removes
 the saved choice and restores the default protection on the next member message.
 Link and bad-word filters still require administrators to configure their Discord
 AutoMod rules and word lists separately.
+
+### Anime fun and streaming profile
+
+Use `/anime` and choose one of 24 anime reactions, with an optional target user.
+Prefix shortcuts also work (for example, `?hug @friend`, `?cuddle @friend`,
+`?blush`, `?cheer @friend`, and `?highfive @friend`):
+
+`slap`, `hug`, `kiss`, `pat`, `cry`, `dance`, `laugh`, `smile`, `angry`, `confused`,
+`sleep`, `cuddle`, `poke`, `highfive`, `wave`, `blush`, `wink`, `smug`, `facepalm`,
+`pout`, `happy`, `nod`, `thumbsup`, `cheer`.
+
+Fun responses use the fixed [nekos.best anime reaction catalog](https://docs.nekos.best/getting-started/api-endpoints.html)
+with anime source credits. There is no general GIF search fallback. If the provider
+is unavailable, the command asks you to retry. The generic rating and prank commands
+(`gay`, `lesbian`, `horny`, `simp`, `iq`, `cute`, `fakeban`, `fakekick`, `nukeall`,
+`ship`, and their aliases) have been removed from the fun menu for the anime-only scope.
+Moderation, music, economy, and other bot modules remain available.
+
+The streaming card has a fixed title (`STREAMING_NAME=Kuroo Music`) and live server,
+user, and shard counts, refreshed every minute. `STREAMING_URL` controls the Watch
+link. This replaces the old rotating activity text, including its command hints.
+Discord clients decide how the card and its fields render.
+
+`BOT_DISPLAY_NAME=ⓀⓊⓇⓄⓄ` requests a circled Unicode bot username at startup to
+approximate the reference's decorative name. It does not change avatars or banners.
+Set it to your preferred name, or leave it blank to preserve the existing username.
+The bot attempts the rename once per process, and a Discord rejection is logged
+without stopping the bot. Unicode appearance depends on the client's fonts.
+Restart the hosted bot after deploying to apply these settings and sync `/anime`.

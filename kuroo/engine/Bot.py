@@ -1,4 +1,5 @@
 import discord
+from kuroo.workflows.presence import streaming_activity
 from discord.ext import commands
 import inspect
 import datetime
@@ -163,7 +164,7 @@ class AutoShardedBot(commands.AutoShardedBot):
                         case_insensitive=True,
                         intents=discord.Intents.all(),
                         status=discord.Status.online,
-                        activity=discord.Streaming(name="Kuroo Devlopment", url=BotConfig.STREAMING_URL),
+                        activity=streaming_activity(BotConfig, shard_count=BotConfig.SHARD_COUNT),
                         strip_after_prefix=True,
                         sync_commands_debug=True,
                         sync_commands=True,

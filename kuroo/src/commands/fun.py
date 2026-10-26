@@ -1,770 +1,221 @@
+"""Anime-only fun commands, with prefix shortcuts and one slash entry point."""
+from typing import Literal
+
 import discord
-
-
 from discord.ext import commands
 
-
 from kuroo.src.checks import checks
-
-
-from kuroo.console.logging import logger
-
-
 from kuroo.style import color
+from kuroo.workflows.anime import REACTIONS, get_anime_gif
 
-
-from kuroo.utils import pings
-
-
-from kuroo.workflows import gif
-
-
-from kuroo.engine.Bot import AutoShardedBot
-
-
-from kuroo.workflows import ui
-
-
-import random
-
-
-import traceback
-
-
-import asyncio
+Reaction = Literal[
+    'slap', 'hug', 'kiss', 'pat', 'cry', 'dance',
+    'laugh', 'smile', 'angry', 'confused', 'sleep', 'cuddle',
+    'poke', 'highfive', 'wave', 'blush', 'wink', 'smug',
+    'facepalm', 'pout', 'happy', 'nod', 'thumbsup', 'cheer',
+]
 
 
 class Fun(commands.Cog):
-
     def __init__(self, bot):
+        self.bot = bot
+        self.cog_info = type("cog_info", (), {
+            "name": "Anime Fun", "category": "Extra", "description": "Anime reaction commands",
+            "hidden": False, "emoji": self.bot.emoji.FUN or "🎉",
+        })
 
-        self.bot: AutoShardedBot = bot
+    async def send_reaction(self, ctx: commands.Context, action: str, user: discord.User = None):
+        if action not in REACTIONS:
+            await ctx.send("Choose an anime reaction: " + ", ".join(REACTIONS))
+            return
+        await ctx.defer()
+        image = await get_anime_gif(action)
+        if image is None:
+            await ctx.send("Anime GIFs are unavailable right now. Please try again shortly.",
+                           allowed_mentions=discord.AllowedMentions.none())
+            return
+        verb, targeted = REACTIONS[action]
+        target = user or ctx.author
+        target_name = "themselves" if target.id == ctx.author.id else target.display_name
+        title = f"{ctx.author.display_name} {verb}"
+        if targeted:
+            title += f" {target_name}"
+        embed = discord.Embed(title=title[:256], color=color.random_color())
+        embed.set_image(url=image.url)
+        embed.set_footer(text=f"Anime: {image.anime} • Requested by {ctx.author.display_name}"[:2048])
+        await ctx.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
 
-        class cog_info:
+    @commands.hybrid_command(name="anime", help="Choose an anime reaction GIF; all reactions are anime only")
+    @checks.ignore_check()
+    @checks.blacklist_check()
+    @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
+    async def anime(self, ctx: commands.Context, action: Reaction = "hug", user: discord.User = None):
+        await self.send_reaction(ctx, action, user)
 
-            name = "Fun"
-
-            category = "Extra"
-
-            description = "Fun commands"
-
-            hidden = False
-
-            emoji = self.bot.emoji.FUN or "🎉"
-
-        self.cog_info = cog_info
-
-    @commands.command(name="slap", help="👋 Slap a person")
+    @commands.command(name="slap", help="Anime slap reaction (also /anime slap)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
     async def slap(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "slap", user)
 
-        if not user:
-
-            user = ctx.author
-
-        # get slap gif
-
-        image_url = gif.get_gif("slapping")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} slapped {(user.name) if user.id != ctx.author.id else 'Himself/Herself'}",
-            color=color.random_color(),
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="hug", help="🤗 Hug a person")
+    @commands.command(name="hug", help="Anime hug reaction (also /anime hug)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
     async def hug(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "hug", user)
 
-        if not user:
-
-            user = ctx.author
-
-        # get hug gif
-
-        image_url = gif.get_gif("hugging")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} hugged {(user.name) if user.id != ctx.author.id else 'Himself/Herself'}",
-            color=color.random_color(),
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="kiss", help="💋 Kiss a person")
+    @commands.command(name="kiss", help="Anime kiss reaction (also /anime kiss)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
     async def kiss(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "kiss", user)
 
-        if not user:
-
-            user = ctx.author
-
-        # get kiss gif
-
-        image_url = gif.get_gif("kissing")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} kissed {(user.name) if user.id != ctx.author.id else 'Himself/Herself'}",
-            color=color.random_color(),
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="pat", help="ðŸ¾ Pat a person")
+    @commands.command(name="pat", help="Anime pat reaction (also /anime pat)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
     async def pat(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "pat", user)
 
-        if not user:
-
-            user = ctx.author
-
-        # get pat gif
-
-        image_url = gif.get_gif("patting")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} patted {(user.name) if user.id != ctx.author.id else 'Himself/Herself'}",
-            color=color.random_color(),
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="cry", help="😢 Cry", emoji="😢")
+    @commands.command(name="cry", help="Anime cry reaction (also /anime cry)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def cry(self, ctx: commands.Context):
+    async def cry(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "cry", user)
 
-        # get cry gif
-
-        image_url = gif.get_gif("crying")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} is crying", color=color.random_color()
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="dance", help="💃 Dance")
+    @commands.command(name="dance", help="Anime dance reaction (also /anime dance)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def dance(self, ctx: commands.Context):
+    async def dance(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "dance", user)
 
-        # get dance gif
-
-        image_url = gif.get_gif("dancing")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} is dancing", color=color.random_color()
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="laugh", help="😂 Laugh")
+    @commands.command(name="laugh", help="Anime laugh reaction (also /anime laugh)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def laugh(self, ctx: commands.Context):
+    async def laugh(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "laugh", user)
 
-        # get laugh gif
-
-        image_url = gif.get_gif("laughing")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} is laughing", color=color.random_color()
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="smile", help="😊 Smile")
+    @commands.command(name="smile", help="Anime smile reaction (also /anime smile)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def smile(self, ctx: commands.Context):
+    async def smile(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "smile", user)
 
-        # get smile gif
-
-        image_url = gif.get_gif("smiling")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} is smiling", color=color.random_color()
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="angry", help="😡 Angry")
+    @commands.command(name="angry", help="Anime angry reaction (also /anime angry)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
     async def angry(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "angry", user)
 
-        if not user:
-
-            user = ctx.author
-
-        # get angry gif
-
-        image_url = gif.get_gif("angry")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} is angry at {(user.name) if user.id != ctx.author.id else 'Himself/Herself'}",
-            color=color.random_color(),
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="confused", help="🤔 Confused")
+    @commands.command(name="confused", help="Anime confused reaction (also /anime confused)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def confused(self, ctx: commands.Context):
+    async def confused(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "confused", user)
 
-        # get confused gif
-
-        image_url = gif.get_gif("confused")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} is confused", color=color.random_color()
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="sleep", help="😴 Sleep")
+    @commands.command(name="sleep", help="Anime sleep reaction (also /anime sleep)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def sleep(self, ctx: commands.Context):
+    async def sleep(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "sleep", user)
 
-        # get sleep gif
-
-        image_url = gif.get_gif("sleeping cartoon")
-
-        embed = discord.Embed(
-            title=f"{ctx.author.name} is sleeping", color=color.random_color()
-        )
-
-        embed.set_image(url=image_url)
-
-        embed.set_footer(
-            text=f"Requested by {ctx.author.name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="gay", help="Predict a persons gayness level")
+    @commands.command(name="cuddle", help="Anime cuddle reaction (also /anime cuddle)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def gay_command(self, ctx: commands.Context, user: discord.Member = None):
+    async def cuddle(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "cuddle", user)
 
-        try:
-
-            if not user:
-
-                user = ctx.author
-
-            gayness = random.randint(0, 100)
-
-            if any(user.id == dev.id for dev in self.bot.developers):
-
-                gayness = 0
-
-            elif user.id in [
-                # 850031806795219014,
-                # 1062994575058276373,
-                # 791348920324063273,
-                # 224611733032009729
-            ]:
-
-                gayness = 100
-
-            embed = discord.Embed(
-                description=f"{user.name} is {gayness}% Gay", color=color.random_color()
-            )
-
-            embed.set_author(
-                name=f"{user.name} Gay Level", icon_url=user.display_avatar.url
-            )
-
-            embed.set_footer(
-                text=f"Requested by {ctx.author.name}",
-                icon_url=ctx.author.display_avatar.url,
-            )
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(name="lesbian", help="Predict a persons lesbian level")
+    @commands.command(name="poke", help="Anime poke reaction (also /anime poke)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def lesbian(self, ctx: commands.Context, user: discord.Member = None):
+    async def poke(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "poke", user)
 
-        try:
-
-            if not user:
-
-                user = ctx.author
-
-            lasbian = random.randint(0, 100)
-
-            if any(user.id == dev.id for dev in self.bot.developers):
-
-                lasbian = 0
-
-            elif user.id in [
-                # 850031806795219014,
-                # 1062994575058276373,
-                # 791348920324063273,
-                # 224611733032009729
-            ]:
-
-                lasbian = 100
-
-            embed = discord.Embed(
-                description=f"{user.name} is {lasbian}% Lesbian",
-                color=color.random_color(),
-            )
-
-            embed.set_author(
-                name=f"{user.name} Lesbian Level", icon_url=user.display_avatar.url
-            )
-
-            embed.set_footer(
-                text=f"Requested by {ctx.author.name}",
-                icon_url=ctx.author.display_avatar.url,
-            )
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(name="horny", help="Predict a persons horny level")
+    @commands.command(name="highfive", help="Anime highfive reaction (also /anime highfive)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def horny(self, ctx: commands.Context, user: discord.Member = None):
+    async def highfive(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "highfive", user)
 
-        try:
-
-            if not user:
-
-                user = ctx.author
-
-            horny = random.randint(0, 100)
-
-            if any(user.id == dev.id for dev in self.bot.developers):
-
-                horny = 0
-
-            elif user.id in [
-                # 850031806795219014,
-                # 1062994575058276373,
-                # 791348920324063273,
-                # 224611733032009729
-            ]:
-
-                horny = 100
-
-            embed = discord.Embed(
-                description=f"{user.name} is {horny}% Horny", color=color.random_color()
-            )
-
-            embed.set_author(
-                name=f"{user.name} Horny Level", icon_url=user.display_avatar.url
-            )
-
-            embed.set_footer(
-                text=f"Requested by {ctx.author.name}",
-                icon_url=ctx.author.display_avatar.url,
-            )
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(name="simp", help="Predict a persons simp level")
+    @commands.command(name="wave", help="Anime wave reaction (also /anime wave)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def simp(self, ctx: commands.Context, user: discord.Member = None):
+    async def wave(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "wave", user)
 
-        try:
-
-            if not user:
-
-                user = ctx.author
-
-            simp = random.randint(0, 100)
-
-            if any(user.id == dev.id for dev in self.bot.developers):
-
-                simp = 0
-
-            elif user.id in [
-                # 850031806795219014,
-                # 1062994575058276373,
-                # 791348920324063273,
-                # 224611733032009729
-            ]:
-
-                simp = 100
-
-            embed = discord.Embed(
-                description=f"{user.mention} is {simp}% Simp",
-                color=color.random_color(),
-            )
-
-            embed.set_author(
-                name=f"{user.name} Simp Level", icon_url=user.display_avatar.url
-            )
-
-            embed.set_footer(
-                text=f"Requested by {ctx.author.name}",
-                icon_url=ctx.author.display_avatar.url,
-            )
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(name="iq", help="Predict a persons IQ level")
+    @commands.command(name="blush", help="Anime blush reaction (also /anime blush)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def iq(self, ctx: commands.Context, user: discord.Member = None):
+    async def blush(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "blush", user)
 
-        try:
-
-            if not user:
-
-                user = ctx.author
-
-            iq = random.randint(0, 200)
-
-            if any(user.id == dev.id for dev in self.bot.developers):
-
-                iq = 200
-
-            elif user.id in [
-                # 850031806795219014,
-                # 1062994575058276373,
-                # 791348920324063273,
-                # 224611733032009729
-            ]:
-
-                iq = 0
-
-            embed = discord.Embed(
-                description=f"{user.mention} has an IQ of `{iq}`",
-                color=color.random_color(),
-            )
-
-            embed.set_author(
-                name=f"{user.name} IQ Level", icon_url=user.display_avatar.url
-            )
-
-            embed.set_footer(
-                text=f"Requested by {ctx.author.name}",
-                icon_url=ctx.author.display_avatar.url,
-            )
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(name="cute", help="Predict a persons cuteness level")
+    @commands.command(name="wink", help="Anime wink reaction (also /anime wink)")
     @checks.ignore_check()
     @checks.blacklist_check()
     @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
-    async def cute(self, ctx: commands.Context, user: discord.Member = None):
+    async def wink(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "wink", user)
 
-        try:
-
-            if not user:
-
-                user = ctx.author
-
-            cute = random.randint(0, 100)
-
-            if any(user.id == dev.id for dev in self.bot.developers):
-
-                cute = 100
-
-            elif user.id in [
-                # 850031806795219014,
-                # 1062994575058276373,
-                # 791348920324063273,
-                # 224611733032009729
-            ]:
-
-                cute = 0
-
-            embed = discord.Embed(
-                description=f"{user.mention} is {cute}% Cute",
-                color=color.random_color(),
-            )
-
-            embed.set_author(
-                name=f"{user.name} Cute Level", icon_url=user.display_avatar.url
-            )
-
-            embed.set_footer(
-                text=f"Requested by {ctx.author.name}",
-                icon_url=ctx.author.display_avatar.url,
-            )
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(name="fakeban", help="Fake ban a user", aliases=["fban"])
+    @commands.command(name="smug", help="Anime smug reaction (also /anime smug)")
     @checks.ignore_check()
     @checks.blacklist_check()
-    @commands.cooldown(rate=3, per=120, type=commands.BucketType.user)
-    async def fakeban(
-        self, ctx: commands.Context, user: discord.Member, *, reason: str = None
-    ):
+    @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
+    async def smug(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "smug", user)
 
-        try:
-
-            if user.id == self.bot.user.id:
-
-                return await ctx.send("I can't ban myself")
-
-            embed = discord.Embed(
-                description=f"{self.bot.emoji.BAN} | Successfully Banned {user.mention} !\nReason: `{reason}`",
-                color=color.green,
-            )
-
-            embed.set_footer(
-                text=f"Action by {ctx.author}", icon_url=ctx.author.display_avatar.url
-            )
-
-            embed.set_author(name=f"User Banned", icon_url=user.display_avatar.url)
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(name="fakekick", help="Fake kick a user", aliases=["fkick"])
+    @commands.command(name="facepalm", help="Anime facepalm reaction (also /anime facepalm)")
     @checks.ignore_check()
     @checks.blacklist_check()
-    @commands.cooldown(rate=3, per=120, type=commands.BucketType.user)
-    async def fakekick(
-        self, ctx: commands.Context, user: discord.Member, *, reason: str = None
-    ):
+    @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
+    async def facepalm(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "facepalm", user)
 
-        try:
-
-            if user.id == self.bot.user.id:
-
-                return await ctx.send("I can't kick myself")
-
-            embed = discord.Embed(
-                description=f"{self.bot.emoji.KICK} | Successfully Kicked {user.mention} !\nReason: `{reason}`",
-                color=color.green,
-            )
-
-            embed.set_footer(
-                text=f"Action by {ctx.author}", icon_url=ctx.author.display_avatar.url
-            )
-
-            embed.set_author(name=f"User Kicked", icon_url=user.display_avatar.url)
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(name="nukeall", help="Nuke all channels in the server ")
+    @commands.command(name="pout", help="Anime pout reaction (also /anime pout)")
     @checks.ignore_check()
     @checks.blacklist_check()
-    @commands.cooldown(rate=1, per=60, type=commands.BucketType.guild)
-    async def nukeall(self, ctx: commands.Context):
+    @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
+    async def pout(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "pout", user)
 
-        try:
-
-            # fake nuke all channels
-
-            embed = discord.Embed(
-                description=f"{self.bot.emoji.LOADING} | Nuking Server...",
-                color=color.random_color(),
-            )
-
-            message = await ctx.send(embed=embed)
-
-            await asyncio.sleep(5)
-
-            embed.description = f"{self.bot.emoji.SUCCESS} | LOL, Just Kidding 😂"
-
-            embed.set_image(
-                url="https://cdn.discordapp.com/attachments/1286969360224882688/1287446868623888497/bully-surprise.gif?ex=66f193d5&is=66f04255&hm=5e6d5fc4491927bcec940dab85d68df735b4d22db5d62d71a96377c2e49cdff8&"
-            )
-
-            await message.edit(embed=embed)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-    @commands.command(
-        name="ship",
-        help="Predict a relationship between two persons",
-        aliases=["compatibility", "romance"],
-    )
+    @commands.command(name="happy", help="Anime happy reaction (also /anime happy)")
     @checks.ignore_check()
     @checks.blacklist_check()
-    @commands.cooldown(rate=4, per=60, type=commands.BucketType.user)
-    async def relation(
-        self, ctx: commands.Context, user1: discord.Member, user2: discord.Member = None
-    ):
+    @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
+    async def happy(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "happy", user)
 
-        try:
+    @commands.command(name="nod", help="Anime nod reaction (also /anime nod)")
+    @checks.ignore_check()
+    @checks.blacklist_check()
+    @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
+    async def nod(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "nod", user)
 
-            if not user2:
+    @commands.command(name="thumbsup", help="Anime thumbsup reaction (also /anime thumbsup)")
+    @checks.ignore_check()
+    @checks.blacklist_check()
+    @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
+    async def thumbsup(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "thumbsup", user)
 
-                user1, user2 = ctx.author, user1
-
-            # fake relationship percentage
-
-            percentage = random.randint(0, 100)
-
-            if any(
-                u.id == dev.id for u in [user1, user2] for dev in self.bot.developers
-            ):
-
-                percentage = 0
-
-            embed = discord.Embed(
-                description=f"{user1.mention} and {user2.mention} are `{percentage}%` Compatible",
-                color=color.random_color(),
-            )
-
-            embed.set_author(
-                name=f"Relationship Percentage", icon_url=ctx.guild.icon.url
-            )
-
-            embed.set_footer(
-                text=f"Requested by {ctx.author.name}",
-                icon_url=ctx.author.display_avatar.url,
-            )
-
-            try:
-
-                image = ui.create_relation_percentage_banner(
-                    user1.display_avatar.url, user2.display_avatar.url, percentage
-                )
-
-                file = discord.File(image, filename="relationship.png")
-
-                embed.set_image(url="attachment://relationship.png")
-
-            except Exception as e:
-
-                logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
-
-                file = None
-
-            await ctx.send(embed=embed, file=file)
-
-        except Exception as e:
-
-            logger.error(f"Error in file {__file__}: {traceback.format_exc()}")
+    @commands.command(name="cheer", help="Anime cheer reaction (also /anime cheer)")
+    @checks.ignore_check()
+    @checks.blacklist_check()
+    @commands.cooldown(rate=3, per=30, type=commands.BucketType.user)
+    async def cheer(self, ctx: commands.Context, user: discord.User = None):
+        await self.send_reaction(ctx, "cheer", user)

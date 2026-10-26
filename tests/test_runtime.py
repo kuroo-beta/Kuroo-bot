@@ -17,13 +17,19 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(bot.status, discord.Status.online)
             self.assertEqual(bot.activity.type, discord.ActivityType.streaming)
             self.assertEqual(bot.activity.url, bot.BotConfig.STREAMING_URL)
-            self.assertEqual(bot.activity.name, 'Kuroo Devlopment')
+            self.assertEqual(bot.activity.name, bot.BotConfig.STREAMING_NAME)
             await bot.load_extension('kuroo.src')
             self.assertEqual(len(bot.cogs), 41)
             self.assertGreater(len(list(bot.walk_commands())), 200)
             self.assertGreater(len(bot.tree.get_commands()), 60)
             self.assertIn('help', bot.all_commands)
             self.assertIsNotNone(bot.tree.get_command('help'))
+            self.assertIsNotNone(bot.tree.get_command('anime'))
+            for name in ('cuddle', 'poke', 'highfive', 'blush', 'cheer'):
+                self.assertIn(name, bot.all_commands)
+            for name in ('gay', 'lesbian', 'horny', 'simp', 'iq', 'cute', 'fakeban', 'fakekick', 'nukeall', 'ship'):
+                self.assertNotIn(name, bot.all_commands)
+
             for name in ('premiumcode', 'premiumgrant', 'premiumrevoke', 'votepremium', 'redeem', 'noprefix', 'rank', 'lb', 'daily', 'work', 'balance', 'deposit', 'withdraw', 'shop', 'buy', 'inventory', 'equip', 'leveling', 'levelchannel', 'welcomecards', 'leave', 'welcomepreview', 'leavepreview', 'levelconfig', 'xp', 'economy', 'levelreward', 'liveleaderboard'):
                 self.assertIn(name, bot.all_commands)
                 self.assertIsNotNone(bot.tree.get_command(name))
@@ -49,34 +55,53 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
                 await bot.remove_cog(name)
             await bot.http.close()
 
-    async def test_presence_rotation_keeps_streaming_and_both_command_hints(self):
+    async def test_streaming_card_keeps_title_and_refreshes_live_counts(self):
         sent = []
         async def change_presence(**kwargs):
             sent.append(kwargs)
+            bot.guilds.append(SimpleNamespace(member_count=None))
         bot = SimpleNamespace(
-            wait_until_ready=AsyncMock(), is_closed=lambda: len(sent) >= 8,
-            change_presence=change_presence, BotConfig=SimpleNamespace(PREFIX='!', STREAMING_URL='https://www.twitch.tv/discord'),
-            guilds=[SimpleNamespace(member_count=10)], commands=[1, 2],
-            urls=SimpleNamespace(WEBSITE='https://example.com'),
+            wait_until_ready=AsyncMock(), is_closed=lambda: len(sent) >= 2,
+            change_presence=change_presence,
+            BotConfig=SimpleNamespace(STREAMING_NAME='Kuroo Music', STREAMING_URL='https://www.twitch.tv/discord'),
+            guilds=[SimpleNamespace(member_count=10)], shard_count=1,
         )
-        cog = ready(bot)
         with patch('kuroo.src.events.ready.asyncio.sleep', new=AsyncMock()):
-            await cog.activity()
-        self.assertTrue(all(item['status'] == discord.Status.online for item in sent))
+            await ready(bot).activity()
         for item in sent:
             payload = item['activity'].to_dict()
+            self.assertEqual(item['status'], discord.Status.online)
             self.assertEqual(payload['type'], discord.ActivityType.streaming.value)
             self.assertEqual(payload['url'], 'https://www.twitch.tv/discord')
-            self.assertEqual(payload['details'], payload['name'])
-        self.assertEqual(sent[0]['activity'].name, 'Kuroo Devlopment')
-        self.assertEqual(sent[7]['activity'].name, 'Kuroo Devlopment')
-        names = [item['activity'].name for item in sent]
-        self.assertIn('!help | /help', names)
-        self.assertIn('/help', names)
+            self.assertEqual(payload['name'], 'Kuroo Music')
+            self.assertEqual(payload['details'], 'Kuroo Music')
+        self.assertEqual(sent[0]['activity'].to_dict()['state'], '1 server • 10 users • 1 shard')
+        self.assertEqual(sent[1]['activity'].to_dict()['state'], '2 servers • 10 users • 1 shard')
+
+    async def test_display_name_changes_once_and_blank_preserves_current_name(self):
+        for desired in ('ⓀⓊⓇⓄⓄ', ''):
+            bot = SimpleNamespace(user=SimpleNamespace(name='Kuroo', edit=AsyncMock()),
+                                  BotConfig=SimpleNamespace(DISPLAY_NAME=desired))
+            cog = ready(bot)
+            await cog.update_display_name()
+            await cog.update_display_name()
+            self.assertEqual(bot.user.edit.await_count, int(bool(desired)))
+            if desired:
+                bot.user.edit.assert_awaited_once_with(username=desired)
+
+    async def test_rejected_profile_name_does_not_retry_or_block_presence(self):
+        error = discord.HTTPException(SimpleNamespace(status=400, reason='Bad request'), 'invalid name')
+        bot = SimpleNamespace(user=SimpleNamespace(name='Kuroo', edit=AsyncMock(side_effect=error)),
+                              BotConfig=SimpleNamespace(DISPLAY_NAME='ⓀⓊⓇⓄⓄ'))
+        cog = ready(bot)
+        with patch('kuroo.src.events.ready.logger'):
+            await cog.update_display_name()
+            await cog.update_display_name()
+        bot.user.edit.assert_awaited_once()
 
     async def test_reconnect_does_not_duplicate_presence_task(self):
         bot = SimpleNamespace(
-            user=SimpleNamespace(id=42), BotConfig=SimpleNamespace(DASHBOARD_ENABLED=False, DISCORD_CLIENT_ID=""),
+            user=SimpleNamespace(id=42, name="Kuroo"), BotConfig=SimpleNamespace(DASHBOARD_ENABLED=False, DISCORD_CLIENT_ID="", DISPLAY_NAME=""),
             urls=SimpleNamespace(),
             tree=SimpleNamespace(sync=AsyncMock()), fetch_user=AsyncMock(),
         )

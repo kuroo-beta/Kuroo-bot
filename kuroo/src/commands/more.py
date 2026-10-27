@@ -7733,7 +7733,13 @@ class More(commands.Cog):
                         view=None,
                     )
 
-                    await storage.automod.delete(guild_id=ctx.guild.id)
+                    cog = self.bot.get_cog("Automod")
+                    if not cog:
+                        await interaction.edit_original_response(content="AutoMod is unavailable; retry after the bot is ready.", embed=None)
+                        return
+                    result = await cog.service.reset(ctx.guild)
+                    automod_notice = (" AutoMod rules need attention; use /automod status."
+                                      if any(value != "enabled" for value in result.values()) else "")
 
                     await storage.antinuke_settings.delete(guild_id=ctx.guild.id)
 
@@ -7747,7 +7753,7 @@ class More(commands.Cog):
 
                     await interaction.edit_original_response(
                         embed=discord.Embed(
-                            description="All the modules settings has been reseted successfully.",
+                            description="All module settings have been reset." + automod_notice,
                             color=color.green,
                         )
                     )
@@ -8045,7 +8051,14 @@ class More(commands.Cog):
                         view=None,
                     )
 
-                    await storage.automod.delete(guild_id=ctx.guild.id)
+                    cog = self.bot.get_cog("Automod")
+                    if not cog:
+                        await interaction.edit_original_response(content="AutoMod is unavailable; retry after the bot is ready.", embed=None)
+                        return
+                    result = await cog.service.reset(ctx.guild)
+                    if any(value != "enabled" for value in result.values()):
+                        await interaction.edit_original_response(content="AutoMod defaults saved. Some native rules need attention; use /automod status.", embed=None)
+                        return
 
                     await interaction.edit_original_response(
                         embed=discord.Embed(

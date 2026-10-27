@@ -8,6 +8,8 @@ from urllib.parse import parse_qs, urlencode
 
 import httpx
 import storage
+from kuroo.workflows import automod as native_automod
+from pymongo.errors import PyMongoError
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from kuroo.src.modules import ticket_panel
@@ -1066,7 +1068,7 @@ def _overview_metrics(current_guild: dict[str, Any], state: dict[str, Any], bot_
     antinuke = state["antinuke"]
     return {
         "security": sum(1 for key in ("anti_bot_add", "anti_channel_delete", "anti_role_delete", "anti_webhook_create", "anti_everyone_mention") if antinuke.get(key)),
-        "moderation": sum(1 for key in ("antilink_enabled", "antispam_enabled", "antibadwords_enabled") if automod.get(key)),
+        "moderation": sum(str(status).startswith("enabled") for key, status in (automod.get("native_status") or {}).items() if key in native_automod.RULES),
         "tickets": sum(1 for module in ticket_modules if module.get("enabled")),
         "giveaways": active_giveaways,
         "welcomer": sum(1 for key in ("welcome", "welcome_message", "welcome_embed", "autorole", "greet") if welcomer.get(key)),
@@ -1139,7 +1141,7 @@ def _render_overview(session: dict[str, Any], guilds: list[dict[str, Any]], curr
         <div data-live="overview-moderation" style="display:none;">{metrics["moderation"]}</div>
         {_render_meter("Guild health", _guild_health(current_guild), 100, "green")}
         {_render_meter("Security coverage", metrics["security"], 5, "blue")}
-        {_render_meter("Moderation coverage", metrics["moderation"], 3, "amber")}
+        {_render_meter("Confirmed native moderation", metrics["moderation"], 10, "amber")}
       </div>
       <div class="card" style="grid-column: span 6;">
         <h2>General settings</h2>
@@ -1223,42 +1225,39 @@ def _render_security(session: dict[str, Any], guilds: list[dict[str, Any]], curr
 
 def _render_moderation(session: dict[str, Any], guilds: list[dict[str, Any]], current_guild: dict[str, Any], state: dict[str, Any], notice: str | None = None) -> str:
     data = state["automod"]
+    config = native_automod.config_from_record(data)
+    statuses = data.get('native_status') or {}
+    switches = ''.join(
+        f'<label class="check"><input type="checkbox" name="rule_{key}" {"checked" if config["rules"][key]["enabled"] else ""}>'
+        f'{_escape(label)} <span class="muted">{_escape(statuses.get(key, "Not checked — use /automod status"))}</span></label>'
+        for key, (label, _) in native_automod.RULES.items())
+    limits = ''.join(
+        f'<label>{_escape(key)} ({low}–{high})<input type="number" min="{low}" max="{high}" name="limit_{key}" value="{config["limits"][key]}"></label>'
+        for key, (low, high, _) in native_automod.LIMITS.items())
+    lists = ''.join(
+        f'<label>{_escape(key)} words (comma separated; * wildcards supported)'
+        f'<textarea name="words_{key}">{_escape(", ".join(config["rules"][key]["words"]))}</textarea></label>'
+        for key in native_automod.WORD_RULES)
+    actions = ''.join(f'<option value="{action}" {"selected" if config["punishment"] == action else ""}>{action}</option>'
+                      for action in ('mute', 'warn', 'kick', 'ban', 'tempban'))
     body = f"""
     <section class="panel">
-      <h1>Moderation Controls</h1>
-      <p class="muted">Keep your chat clean.</p>
+      <h1>Ten native AutoMod protections</h1>
+      <p class="muted">Discord enforces native rules even while Kuroo is offline. Saved status is from the last sync.
+      Existing rules from administrators and other bots are preserved; occupied slots appear as conflicts.
+      An empty custom list disables its existing filter until words are configured.</p>
       <form method="post" action="/dashboard/guild/{current_guild['id']}/moderation" style="margin-top:18px;">
-        <div class="switches">
-          <label class="check"><input type="checkbox" name="antilink_enabled" {"checked" if data.get("antilink_enabled") else ""}> Enable anti-link</label>
-          <label class="check"><input type="checkbox" name="antispam_enabled" {"checked" if data.get("antispam_enabled") else ""}> Enable anti-spam</label>
-          <label class="check"><input type="checkbox" name="antibadwords_enabled" {"checked" if data.get("antibadwords_enabled") else ""}> Enable bad-word filter</label>
+        <input type="hidden" name="native_form" value="1">
+        <div class="switches">{switches}</div>
+        <div class="fields">{limits}{lists}
+          <label>Local spam punishment<select name="punishment">{actions}</select></label>
+          <label>Alert channel ID (blank for none)<input name="alert_channel" value="{_escape(config['alert_channel'] or '')}" inputmode="numeric"></label>
         </div>
-        <div class="fields">
-          <label>Max messages
-            <input type="number" min="1" max="30" name="antispam_max_messages" value="{_escape(data.get('antispam_max_messages', 10))}">
-          </label>
-          <label>Interval seconds
-            <input type="number" min="1" max="120" name="antispam_max_interval" value="{_escape(data.get('antispam_max_interval', 30))}">
-          </label>
-          <label>Max mentions
-            <input type="number" min="1" max="20" name="antispam_max_mentions" value="{_escape(data.get('antispam_max_mentions', 5))}">
-          </label>
-          <label>Punishment
-            <select name="antispam_punishment">
-              <option value="mute" {"selected" if data.get("antispam_punishment") == "mute" else ""}>Mute</option>
-              <option value="kick" {"selected" if data.get("antispam_punishment") == "kick" else ""}>Kick</option>
-              <option value="ban" {"selected" if data.get("antispam_punishment") == "ban" else ""}>Ban</option>
-              <option value="warn" {"selected" if data.get("antispam_punishment") == "warn" else ""}>Warn</option>
-            </select>
-          </label>
-          <label>Punishment duration (minutes)
-            <input type="number" min="1" max="1440" name="antispam_punishment_duration" value="{_escape(data.get('antispam_punishment_duration', 10))}">
-          </label>
-          <label>Bad words list
-            <input type="text" name="antibadwords_words" value="{_escape(', '.join(data.get('antibadwords_words', []) or []))}" placeholder="word1, word2, word3">
-          </label>
-        </div>
-        <button class="save-btn" type="submit">Save moderation settings</button>
+        <p class="muted">Timeout is in minutes; interval is in seconds. Native keyword and mention rules support mute.
+        Other native message rules block; profile rules block member interactions. Kick, ban, tempban and warn apply to local detections. Tempban uses the timeout minutes.
+        Caps percentage applies locally; native caps blocks all-uppercase messages with at least eight letters.
+        Manage allowed words, exemptions and language presets with /automod commands.</p>
+        <button class="save-btn" type="submit">Save and sync all ten rules</button>
       </form>
     </section>
     """
@@ -1687,20 +1686,39 @@ async def update_moderation_settings(request: Request, guild_id: int):
     if not session or not current_guild:
         return RedirectResponse("/dashboard", status_code=303)
     data = await _parse_form(request)
-    badwords = [word.strip() for word in (data.get("antibadwords_words") or "").split(",") if word.strip()]
-    await storage.automod.update(
-        id=state["automod"]["id"],
-        antilink_enabled=_bool_from_form(data, "antilink_enabled"),
-        antispam_enabled=_bool_from_form(data, "antispam_enabled"),
-        antibadwords_enabled=_bool_from_form(data, "antibadwords_enabled"),
-        antispam_max_messages=int(data.get("antispam_max_messages", 10) or 10),
-        antispam_max_interval=int(data.get("antispam_max_interval", 30) or 30),
-        antispam_max_mentions=int(data.get("antispam_max_mentions", 5) or 5),
-        antispam_punishment=(data.get("antispam_punishment") or "mute").lower(),
-        antispam_punishment_duration=int(data.get("antispam_punishment_duration", 10) or 10),
-        antibadwords_words=badwords,
-    )
-    return RedirectResponse(f"/dashboard/guild/{guild_id}/moderation?notice=Moderation%20settings%20saved", status_code=303)
+    bot = get_bot()
+    guild = bot.get_guild(guild_id) if bot else None
+    cog = bot.get_cog('Automod') if bot else None
+    if not guild or not cog:
+        return RedirectResponse(f"/dashboard/guild/{guild_id}/moderation?notice=Bot%20is%20not%20ready", status_code=303)
+    def change(config):
+        if data.get('native_form') != '1':
+            raise native_automod.ConfigError('This form is outdated; reload the moderation page.')
+        for key in native_automod.RULES:
+            config['rules'][key]['enabled'] = _bool_from_form(data, 'rule_' + key)
+        for key in native_automod.LIMITS:
+            try:
+                config['limits'][key] = int(data.get('limit_' + key, ''))
+            except (ValueError, TypeError):
+                raise native_automod.ConfigError(f'{key} must be a whole number.')
+        for key in native_automod.WORD_RULES:
+            config['rules'][key]['words'] = list(dict.fromkeys(word.strip() for word in data.get('words_' + key, '').split(',') if word.strip()))
+        config['punishment'] = data.get('punishment', 'mute')
+        alert = data.get('alert_channel', '').strip()
+        if alert and not alert.isdecimal():
+            raise native_automod.ConfigError('Alert channel must be a numeric channel ID.')
+        config['alert_channel'] = int(alert) if alert else None
+    try:
+        result = await cog.service.configure(guild, change)
+        complete = all(value in ('enabled', 'disabled', 'disabled (not installed)') for value in result.values())
+        notice = 'Settings saved and synced' if complete else 'Settings saved; some native rules need attention — check the rule statuses'
+    except native_automod.ConfigError as error:
+        notice = str(error)
+    except PyMongoError:
+        notice = 'Database unavailable; settings could not be confirmed. Retry after it recovers.'
+    from urllib.parse import quote
+    return RedirectResponse(f"/dashboard/guild/{guild_id}/moderation?notice={quote(notice)}", status_code=303)
+
 
 
 @router.post("/guild/{guild_id}/music")

@@ -448,22 +448,125 @@ MIT License
 
 Copyright (c) 2026 Codex Development
 
-### Default AutoMod protection
+### Ten native AutoMod protections
 
-AutoMod spam protection is enabled for servers without saved AutoMod settings,
-starting with the first member message. It checks repeated messages, message
-floods, mass mentions, excessive emojis, and excessive capitals using the existing
-limits, exemptions, and punishment settings. The bot needs the corresponding
-Discord permissions to delete messages and apply punishments.
+Kuroo installs **exactly ten application-owned Discord AutoMod rules** in new
+servers on ready/join, when permissions and rule slots allow. Native enforcement
+continues while the bot is offline. All ten start enabled for new settings;
+**existing saved choices, including disabled protection, are preserved**.
+This expands the previous new-server default, which only enabled local spam.
 
-Server administrators can use `/automod disable` to turn it off and `/automod enable`
-to turn it back on, or adjust it with `/automod antispam`. Saved settings (including
-disabled protection) survive restarts and are never overwritten by the defaults.
-Existing saved off settings remain off because older records do not distinguish
-an untouched default from an administrator's choice. Resetting AutoMod removes
-the saved choice and restores the default protection on the next member message.
-Link and bad-word filters still require administrators to configure their Discord
-AutoMod rules and word lists separately.
+| Rule key | Native trigger | Protection |
+| --- | --- | --- |
+| `links` | Keyword 1/6 | HTTP(S), www and bare-domain links |
+| `invites` | Keyword 2/6 | Discord invite links, including discord.gg and discord.me |
+| `words` | Keyword 3/6 | Configurable harassment words; new defaults: `kill yourself`, `kys` |
+| `scams` | Keyword 4/6 | Configurable Nitro/credential scam phrases |
+| `emoji` | Keyword 5/6 | Repeated custom and Unicode emoji |
+| `caps` | Keyword 6/6 | Entirely uppercase messages containing at least eight letters |
+| `spam` | Spam | Discord's spam classifier; local sliding-window flood/duplicate support |
+| `language` | Keyword preset | Discord's profanity, sexual-content and slur presets |
+| `mentions` | Mention spam | Unique user/role mention limit and native mention-raid protection |
+| `profiles` | Member profile | Block interactions for configured profile impersonation patterns |
+
+New scam defaults are `*free nitro generator*`, `*discord password*`, and
+`*scan this qr to claim nitro*`. New profile defaults are `*discord staff*`,
+`*discord support*`, and `*free nitro*`. These are configurable phrase filters,
+not a comprehensive phishing-domain feed or identity verification service.
+Review them for your community and exempt legitimate staff roles as needed.
+Discord controls preset/classifier matching; results can include false positives.
+
+**Permissions:** Manage Server to create/read/edit rules; Moderate Members for
+native timeouts and local mute. Manage Messages is needed for local deletion;
+Kick Members/Ban Members and a higher bot role are needed for the respective
+local actions. Enable Message Content and Server Members intents in the Developer
+Portal for local message checks and member resolution. AutoMod rule/action gateway
+intents are enabled in the bot. Alert channels must be visible and writable.
+
+Administrators can configure everything with slash or prefix commands:
+
+```text
+/automod status
+/automod sync
+/automod disable
+/automod enable
+/automod rule rule:links enabled:false
+/automod words rule:words entries:word one, *substring*
+/automod words rule:profiles entries:*discord staff*, *free nitro*
+/automod allow rule:links entries:*example.com*
+/automod limit setting:mentions value:5
+/automod limit setting:timeout value:10
+/automod exemptrole rule:profiles role:@Staff exempt:true
+/automod exemptchannel rule:links channel:#links exempt:true
+/automod action punishment:mute
+/automod alerts channel:#automod-alerts
+/automod presets profanity:true sexual_content:true slurs:true
+/automod settings rule:spam
+/automod badge
+```
+
+`/antilink`, `/antispam`, `/antibadwords` and their enable/disable/settings
+subcommands remain available. The former button settings menus are replaced by
+`/automod` commands and the dashboard's ten-rule moderation form. Commands require
+Administrator; the dashboard retains its existing owner/Manage Server access.
+Use `entries:clear` to empty a word or allow list. Empty custom filters report
+**needs configuration** and disable any existing filter; no placeholder rules
+are created just to fill slots. Exemptions support up to 20 roles and 50 channels
+per rule; a parent-channel exemption also covers threads. Member-profile rules
+have no message channel context; use role exemptions for them.
+
+The native action is block message, or block member interactions for profiles.
+`mute` additionally applies a native timeout only to keyword and mention rules,
+as Discord requires. Warn/kick/ban/tempban apply only to **local** detections; they do
+not turn Discord's native classifier into a kick/ban action. Alerts are optional.
+Timeout settings are **minutes** (1–40,320); the old local code incorrectly treated
+those values as seconds. Legacy `tempban` now uses the same minute-based duration and persists an expiry
+before applying the ban. A 30-second recovery worker retries overdue unbans after
+restarts or permission/API failures. It checks the unique ban reason before unbanning,
+so a later manual permanent ban is preserved. Keep the bot in the server with Ban
+Members to finish recovery. Never remove pending `automod_tempbans` documents.
+
+Local enforcement supplements spam/caps/emoji/mentions while Kuroo is running.
+It uses bounded, per-server/per-member sliding windows (10 messages in 30 seconds
+by default), three identical nonempty messages (or the lower message limit),
+Unicode emoji clusters, and a punishment cooldown. Native emoji detects consecutive
+emoji; local checks also count emoji separated by text. Native caps is an all-caps
+subset; the configurable local percentage uses **letters**, correcting the old
+all-character denominator that let spaces bypass it. Mention limits are maximum
+allowed unique user/role IDs, so local enforcement triggers when exceeded.
+Edits are checked without counting as new flood messages. Only the offending
+message is deleted; unrelated channel history is never purged. Existing local
+staff/extra-owner bypasses remain; native bypasses follow Discord's own policy,
+so use explicit exempt roles for consistent behavior. Local flood state is memory
+only, bounded to 10,000 member/server entries, and resets on restart/eviction.
+
+Sync is idempotent and only manages rules created by this bot, identified by
+saved IDs or stable `Kuroo AutoMod: <key>` names. Existing legacy link/word rules
+are adopted by ID after verifying their creator and trigger. Other apps' and
+administrators' rules are preserved. Discord permits only six keyword rules and
+one each for the other four triggers, so an occupied slot reports a **conflict**.
+Resolve it in Server Settings → AutoMod and run `/automod sync`; the bot never
+silently deletes another rule. Duplicate owned rules also require explicit cleanup.
+Actual rule count can be below ten until conflicts, missing permissions or lists
+are resolved, and administrators can disable individual protections.
+
+Native opt-outs (including deletion) are saved from gateway events and observed
+on reconnect. Reconnect preserves native metadata edits; `/automod status` reports
+drift and `/automod sync` applies saved settings. Explicit bot changes are saved
+**before** REST calls; failed changes remain pending and retry on sync/reconnect,
+so a failed disable is never reported as completed or forgotten. Status reports
+pending changes without retrying them. The dashboard displays the last sync result,
+and coverage counts only confirmed enabled native rules. Reset AutoMod explicitly
+restores defaults and syncs the same owned rules; it does not orphan duplicate rules.
+One active bot process must own a guild's configuration (locks are process local).
+
+**Badge:** this is real AutoMod API integration, not a badge grant. Discord controls
+the `APPLICATION_AUTO_MODERATION_RULE_CREATE_BADGE` application flag and badge
+display. The discord.py 2.6.4 documentation describes at least **100 AutoMod rules
+across guilds**; ten rules in one server do not guarantee it. `/automod badge`
+checks the actual application flag. Do not create dummy rules or servers for a badge.
+See [Discord's AutoMod API](https://docs.discord.com/developers/resources/auto-moderation)
+and [discord.py ApplicationFlags](https://discordpy.readthedocs.io/en/stable/api.html#discord.ApplicationFlags.auto_mod_badge).
 
 ### Anime fun and streaming profile
 

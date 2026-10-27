@@ -46,7 +46,8 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
                     self.assertLessEqual(len(item.get('options', [])), 25)
                     validate(item.get('options', []))
             validate(definitions)
-            for path in [('music', 'stay'), ('music', 'filter'), ('music', 'favourites'),
+            for path in [('automod', 'sync'), ('automod', 'rule'), ('automod', 'words'), ('automod', 'badge'),
+                         ('music', 'stay'), ('music', 'filter'), ('music', 'favourites'),
                          ('servertools', 'tracking'), ('servertools', 'dashboard'), ('servertools', 'alertadd'),
                          ('panic', 'setup'), ('panic', 'unlock'), ('onboard', 'addrole'), ('onboard', 'panel'), ('levelconfig', 'announcements'), ('levelconfig', 'ignorechannel'),
                          ('levelconfig', 'rate'), ('xp', 'edit'), ('economy', 'rewards'), ('levelreward', 'set'), ('liveleaderboard', 'set')]:
